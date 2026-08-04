@@ -42,6 +42,26 @@ class Validator {
     }
   }
 
+  /// Verifies that [inputFile] exists on disk as a file.
+  ///
+  /// Throws [InputFileNotFoundException] if it does not exist, or
+  /// [PermissionDeniedException] if it exists but cannot be accessed.
+  Future<void> validateInputFile(String inputFile) async {
+    final file = File(inputFile);
+
+    late final bool exists;
+    try {
+      exists = await file.exists();
+    } on FileSystemException {
+      throw PermissionDeniedException(inputFile);
+    }
+
+    if (!exists) {
+      throw InputFileNotFoundException(inputFile);
+    }
+  }
+
+
   /// Resolves the playlist file to use for conversion.
   ///
   /// Looks for [ConverterConstants.primaryPlaylistName] first, then
@@ -129,6 +149,54 @@ class Validator {
       );
     }
   }
+
+  /// Validates [outputPath] for HLS output (which requires a directory
+  /// and an `.m3u8` playlist file).
+  ///
+  /// Returns the resolved playlist file path (e.g. `outputDir/index.m3u8`).
+  Future<String> validateAndPrepareHlsOutput(String outputPath) async {
+    if (outputPath.trim().isEmpty) {
+      throw InvalidOutputPathException(outputPath);
+    }
+
+    final String resolvedPlaylistPath;
+    final Directory targetDirectory;
+
+    if (outputPath.toLowerCase().endsWith(ConverterConstants.expectedM3u8Extension)) {
+      resolvedPlaylistPath = outputPath;
+      targetDirectory = File(outputPath).parent;
+    } else {
+      targetDirectory = Directory(outputPath);
+      resolvedPlaylistPath = _joinPath(outputPath, ConverterConstants.primaryPlaylistName);
+    }
+
+    try {
+      final exists = await targetDirectory.exists();
+      if (!exists) {
+        _logger.info('Output directory does not exist. Creating it...');
+        await targetDirectory.create(recursive: true);
+      }
+    } on FileSystemException catch (e) {
+      throw OutputDirectoryException(
+        targetDirectory.path,
+        e.message,
+      );
+    }
+
+    final probeFile = File(_joinPath(targetDirectory.path, _probeFileName));
+    try {
+      await probeFile.writeAsString('');
+      await probeFile.delete();
+    } on FileSystemException {
+      throw OutputDirectoryException(
+        targetDirectory.path,
+        'directory is not writable.',
+      );
+    }
+
+    return resolvedPlaylistPath;
+  }
+
 
   static const String _probeFileName = '.hls_converter_write_test.tmp';
 

@@ -21,6 +21,13 @@ class InputFolderNotFoundException extends ConverterException {
       : super('Input folder not found: "$path".');
 }
 
+/// Thrown when the input file supplied to the converter does not exist.
+class InputFileNotFoundException extends ConverterException {
+  InputFileNotFoundException(String path)
+      : super('Input file not found: "$path".');
+}
+
+
 /// Thrown when neither `index.m3u8` nor `index_rel.m3u8` can be found
 /// inside the input folder.
 class PlaylistNotFoundException extends ConverterException {

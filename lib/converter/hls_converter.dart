@@ -75,7 +75,7 @@ class HlsConverter {
     await _validator.validateAndPrepareOutput(outputFile);
 
     final arguments = _commandBuilder.build(
-      playlistPath: playlist.path,
+      inputPath: playlist.path,
       outputPath: outputFile,
     );
 

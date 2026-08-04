@@ -10,10 +10,6 @@ class ConverterConstants {
   ///
   /// [primaryPlaylistName] is preferred over [fallbackPlaylistName] when
   /// both are present in the input folder.
-  /// Playlist file names, in priority order.
-  ///
-  /// [primaryPlaylistName] is preferred over [fallbackPlaylistName] when
-  /// both are present in the input folder.
   static const String primaryPlaylistName = 'index.m3u8';
   static const String fallbackPlaylistName = 'index_rel.m3u8';
 
@@ -25,13 +21,24 @@ class ConverterConstants {
   /// Default name of the ffmpeg executable as resolved from PATH.
   static const String defaultFFmpegExecutable = 'ffmpeg';
 
-  /// Expected output file extension.
-  static const String expectedOutputExtension = '.mp4';
+  /// Expected output file extensions.
+  static const String expectedMp4Extension = '.mp4';
+  static const String expectedM3u8Extension = '.m3u8';
 
   /// ffmpeg CLI flags.
   static const String flagInput = '-i';
   static const String flagCodec = '-c';
   static const String flagOverwrite = '-y';
   static const String flagVersion = '-version';
+  static const String flagFormat = '-f';
+  static const String flagStartNumber = '-start_number';
+  static const String flagHlsTime = '-hls_time';
+  static const String flagHlsListSize = '-hls_list_size';
+
+  static const String formatHls = 'hls';
   static const String codecCopy = 'copy';
+  static const String defaultHlsSegmentTimeSeconds = '10';
+  static const String defaultHlsStartNumber = '0';
+  static const String defaultHlsListSize = '0';
 }
+
