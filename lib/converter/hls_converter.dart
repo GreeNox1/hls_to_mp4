@@ -65,8 +65,9 @@ class HlsConverter {
     _logger.info('Checking folder...');
     await _validator.validateInputFolder(inputFolder);
 
-    final playlist = await _validator.resolvePlaylist(inputFolder);
-    _logger.info('Playlist found.\n${playlist.path}');
+    final playlists = await _validator.resolvePlaylists(inputFolder);
+    final playlistNames = playlists.map((f) => f.uri.pathSegments.last).join(', ');
+    _logger.info('Playlist candidates found (${playlists.length}): $playlistNames');
 
     _logger.info('Checking ffmpeg availability...');
     await _validator.validateFFmpegAvailable(_ffmpegExecutable);
@@ -74,33 +75,54 @@ class HlsConverter {
     _logger.info('Checking output path...');
     await _validator.validateAndPrepareOutput(outputFile);
 
-    final arguments = _commandBuilder.build(
-      inputPath: playlist.path,
-      outputPath: outputFile,
-    );
+    FFmpegProcessException? lastProcessException;
 
-    _logger.info('Starting conversion...');
-    final executionResult = await _ffmpegService.run(
-      executablePath: _ffmpegExecutable,
-      arguments: arguments,
-    );
+    for (var i = 0; i < playlists.length; i++) {
+      final playlist = playlists[i];
+      final fileName = playlist.uri.pathSegments.last;
 
-    stopwatch.stop();
+      _logger.info(
+        'Attempting conversion using playlist (${i + 1}/${playlists.length}):\n${playlist.path}',
+      );
 
-    if (executionResult.exitCode != 0) {
-      throw FFmpegProcessException(
+      final arguments = _commandBuilder.build(
+        inputPath: playlist.path,
+        outputPath: outputFile,
+      );
+
+      final executionResult = await _ffmpegService.run(
+        executablePath: _ffmpegExecutable,
+        arguments: arguments,
+      );
+
+      if (executionResult.exitCode == 0) {
+        stopwatch.stop();
+        _logger.success('Video saved:\n$outputFile');
+        return ConversionResult(
+          success: true,
+          outputPath: outputFile,
+          duration: stopwatch.elapsed,
+          exitCode: executionResult.exitCode,
+        );
+      }
+
+      lastProcessException = FFmpegProcessException(
         executionResult.exitCode,
         executionResult.stderrOutput,
       );
+
+      if (i < playlists.length - 1) {
+        _logger.warning(
+          'Conversion failed using playlist "$fileName" (exit code ${executionResult.exitCode}). '
+          'Retrying with next playlist candidate...',
+        );
+      }
     }
 
-    _logger.success('Video saved:\n$outputFile');
+    stopwatch.stop();
 
-    return ConversionResult(
-      success: true,
-      outputPath: outputFile,
-      duration: stopwatch.elapsed,
-      exitCode: executionResult.exitCode,
-    );
+    throw lastProcessException ??
+        FFmpegProcessException(-1, 'All playlist candidates failed to convert.');
   }
 }
+

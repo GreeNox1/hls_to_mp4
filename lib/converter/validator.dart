@@ -62,21 +62,48 @@ class Validator {
   }
 
 
-  /// Resolves the playlist file to use for conversion.
+  /// Resolves all available playlist files in priority order.
   ///
-  /// Looks for [ConverterConstants.primaryPlaylistName] first, then
-  /// falls back to [ConverterConstants.fallbackPlaylistName]. Throws
-  /// [PlaylistNotFoundException] if neither file is present.
-  Future<File> resolvePlaylist(String inputFolder) async {
+  /// Looks for [ConverterConstants.playlistCandidates] first. If none are found,
+  /// scans [inputFolder] for any `.m3u8` files. Throws [PlaylistNotFoundException]
+  /// if no playlist candidate files exist.
+  Future<List<File>> resolvePlaylists(String inputFolder) async {
+    final List<File> candidates = [];
+
     for (final candidateName in ConverterConstants.playlistCandidates) {
       final candidate = File(_joinPath(inputFolder, candidateName));
       if (await candidate.exists()) {
-        return candidate;
+        candidates.add(candidate);
       }
     }
 
-    throw PlaylistNotFoundException(inputFolder);
+    if (candidates.isEmpty) {
+      final directory = Directory(inputFolder);
+      try {
+        final entries = await directory.list().toList();
+        for (final entry in entries) {
+          if (entry is File && entry.path.toLowerCase().endsWith(ConverterConstants.expectedM3u8Extension)) {
+            candidates.add(entry);
+          }
+        }
+      } catch (_) {
+        // Ignore filesystem list errors here, as validateInputFolder already checked permissions.
+      }
+    }
+
+    if (candidates.isEmpty) {
+      throw PlaylistNotFoundException(inputFolder);
+    }
+
+    return candidates;
   }
+
+  /// Resolves the primary playlist file to use for conversion.
+  Future<File> resolvePlaylist(String inputFolder) async {
+    final playlists = await resolvePlaylists(inputFolder);
+    return playlists.first;
+  }
+
 
   /// Confirms that the `ffmpeg` executable can actually be started on
   /// this system.
