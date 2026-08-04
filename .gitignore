@@ -1,0 +1,10 @@
+# https://dart.dev/tools/private-files
+# Created by `dart pub`
+.dart_tool/
+.packages
+.pub/
+build/
+
+# Heavy binaries (ffmpeg.exe >100MB is rejected by GitHub)
+tools/
+*.exe
